@@ -4,7 +4,7 @@ import google.generativeai as genai
 class GeminiClient:
     def __init__(self, api_key: str = None):
         # Use the provided key if not found in environment
-        key = api_key or os.environ.get("GEMINI_API_KEY", "AIzaSyBLbanLI4Eq90Rx3_dn-72jr54A0hXkyYk")
+        key = api_key or os.environ.get("GEMINI_API_KEY", "ENTER_YOUR_API_HERE")
         if not key:
             raise ValueError("GEMINI_API_KEY environment variable is not set. Please set it to use the Gemini features.")
         genai.configure(api_key=key)
