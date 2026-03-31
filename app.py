@@ -4,6 +4,7 @@ import json
 import base64
 import io
 import PyPDF2
+import docx
 from security_module import MedVault, LedgerChain
 from privacy_module import PrivacyEngine
 from gemini_client import GeminiClient
@@ -102,26 +103,45 @@ with tab1:
         bp_sys = st.number_input("Systolic BP", value=120)
         bp_dia = st.number_input("Diastolic BP", value=80)
         
-    uploaded_file = st.file_uploader("Upload Clinical Notes (PDF/TXT)", type=["pdf", "txt"])
+    uploaded_file = st.file_uploader("Upload Clinical Notes (Any Format)")
     notes = ""
+    attached_file_b64 = None
+    attached_mime = None
     
     if uploaded_file is not None:
-        if uploaded_file.name.endswith(".pdf"):
+        file_name = uploaded_file.name.lower()
+        file_mime = uploaded_file.type
+        
+        if file_name.endswith(".pdf"):
             try:
                 pdf_reader = PyPDF2.PdfReader(uploaded_file)
                 for page in pdf_reader.pages:
                     extracted = page.extract_text()
                     if extracted:
                         notes += extracted + "\n"
-                st.success("PDF contents extracted successfully.")
+                st.success("PDF text extracted successfully.")
             except Exception as e:
                 st.error(f"Error reading PDF: {e}")
-        elif uploaded_file.name.endswith(".txt"):
+        elif file_name.endswith(".docx"):
+            try:
+                doc = docx.Document(uploaded_file)
+                notes = "\n".join([para.text for para in doc.paragraphs])
+                st.success("DOCX text extracted successfully.")
+            except Exception as e:
+                st.error(f"Error reading DOCX: {e}")
+        elif file_name.endswith((".txt", ".csv", ".json", ".md", ".xml")):
             try:
                 notes = uploaded_file.read().decode("utf-8")
-                st.success("Text file contents read successfully.")
+                st.success("Text file read successfully.")
             except Exception as e:
                 st.error(f"Error reading text file: {e}")
+        else:
+            try:
+                attached_file_b64 = base64.b64encode(uploaded_file.read()).decode('utf-8')
+                attached_mime = file_mime if file_mime else "application/octet-stream"
+                st.success(f"Attached non-text file safely ({attached_mime}).")
+            except Exception as e:
+                st.error(f"Error processing file: {e}")
     else:
         notes = st.text_area("Or paste Clinical Notes here manually:")
     
@@ -133,6 +153,10 @@ with tab1:
             "diastolic": bp_dia,
             "notes": notes
         }
+        if attached_file_b64:
+            record["attached_file_b64"] = attached_file_b64
+            record["attached_mime"] = attached_mime
+        
         # Encrypt with AES-256
         encrypted = st.session_state.vault.encrypt_data(record)
         st.session_state.db.append(encrypted)

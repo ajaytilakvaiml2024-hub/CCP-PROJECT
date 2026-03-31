@@ -13,16 +13,33 @@ class GeminiClient:
         
     def interpret_patient_data(self, decrypted_patient_record: dict) -> str:
         """Provides a medical interpretation of a single patient record securely."""
-        prompt = f"""
-        You are an expert AI clinical assistant. Below is a securely passed patient record.
-        Analyze this patient's data, highlight any critical areas of concern, and provide general 
-        medical interpretation without diagnosing or prescribing. 
-        
-        Patient Data: {decrypted_patient_record}
-        """
-        
         try:
-            response = self.model.generate_content(prompt)
+            # Hide huge base64 strings from text payload to prevent token bloat
+            clean_record = {k: v for k, v in decrypted_patient_record.items() if k not in ["attached_file_b64", "attached_mime"]}
+            
+            prompt = f"""
+            You are an expert AI clinical assistant. Below is a securely passed patient record.
+            Analyze this patient's data, highlight any critical areas of concern, and provide general 
+            medical interpretation without diagnosing or prescribing. 
+            
+            Patient Data: {clean_record}
+            """
+            
+            contents = [prompt]
+            
+            if "attached_file_b64" in decrypted_patient_record and "attached_mime" in decrypted_patient_record:
+                import base64
+                b64_string = decrypted_patient_record["attached_file_b64"]
+                mime_type = decrypted_patient_record["attached_mime"]
+                raw_bytes = base64.b64decode(b64_string)
+                
+                # Appending inline data representation for Gemini
+                contents.append({
+                    "mime_type": mime_type,
+                    "data": raw_bytes
+                })
+
+            response = self.model.generate_content(contents)
             return response.text
         except Exception as e:
             return f"Error connecting to Gemini 1.5 Flash: {str(e)}"
