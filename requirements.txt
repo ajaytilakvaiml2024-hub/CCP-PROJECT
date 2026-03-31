@@ -1,0 +1,6 @@
+streamlit
+cryptography
+numpy
+google-generativeai
+pandas
+PyPDF2
